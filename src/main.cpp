@@ -82,9 +82,11 @@ void loop4events() {
   sensors_event_t event;
   lis.getEvent(&event);
 
+  float threshold = .5;
+
   if(lastX > 0 || lastY > 0 || lastZ > 0)
   {
-    if(abs(lastX - event.acceleration.x) > .5 || abs(lastY - event.acceleration.y) > .5)
+    if(abs(lastX - event.acceleration.x) > threshold || abs(lastY - event.acceleration.y) > threshold)
     {
       //Don't trigger on the way up
       if(on)
@@ -96,17 +98,21 @@ void loop4events() {
       {        
         on = true;
         Serial.println("Event occured");
-        Serial.print("\t\tX: "); Serial.print(event.acceleration.x);
-        Serial.print(" \tY: "); Serial.print(event.acceleration.y);
-        Serial.print(" \tZ: "); Serial.print(event.acceleration.z);
-        Serial.println(" m/s^2 ");
-        Serial.println();
-
+        char outString[200];
+        
+        sprintf(outString,
+        "\t\tX: %f to %f (%f) Y: %f to %f (%f) Z: %f to %f (%f)",
+          lastX, event.acceleration.x, abs(lastX - event.acceleration.x),
+          lastY, event.acceleration.y, abs(lastY - event.acceleration.y),
+          lastZ, event.acceleration.z, abs(lastZ - event.acceleration.z));
+        Serial.println(outString);
+    
         Serial.println("Setting high");
         gpio_set_level(relayGPIO, 1);
         delay(1000);
         gpio_set_level(relayGPIO, 0);
         Serial.println("Setting low");
+        //delay(1000);
       }
     }
     else
@@ -119,5 +125,5 @@ void loop4events() {
   lastY = event.acceleration.y;
   lastZ = event.acceleration.z;
 
-  delay(500);
+  delay(100);
 }
