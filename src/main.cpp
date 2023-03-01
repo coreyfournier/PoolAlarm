@@ -26,6 +26,9 @@ float lastY = 0;
 float lastZ = 0;
 bool on = false;
 gpio_num_t relayGPIO = GPIO_NUM_26;
+const float potentiometerMax = 4095;
+const int highestDifference = 2;
+float lastPotentiometerValue = 0;
 
 
 void setup(void) {
@@ -67,8 +70,7 @@ void setup(void) {
     case LIS3DH_DATARATE_POWERDOWN: Serial.println("Powered Down"); break;
     case LIS3DH_DATARATE_LOWPOWER_5KHZ: Serial.println("5 Khz Low Power"); break;
     case LIS3DH_DATARATE_LOWPOWER_1K6HZ: Serial.println("16 Khz Low Power"); break;
-  }
-  
+  }  
 }
 
 void loop(){
@@ -76,17 +78,29 @@ void loop(){
 }
 
 void loop4events() {
+
+  int potentiometerValue = analogRead(A5);  
+  float potentiometerPercent = (float)potentiometerValue / potentiometerMax;
+  float diffThreshold = (potentiometerPercent * highestDifference);
+
+  if(lastPotentiometerValue != potentiometerValue)
+  {
+    Serial.print("P%=");
+    Serial.print(potentiometerPercent);
+    Serial.print(" threshold="); 
+    Serial.println(diffThreshold);
+    lastPotentiometerValue = potentiometerValue;
+  }
+
   lis.read();      // get X Y and Z data at once
 
   /* Or....get a new sensor event, normalized */
   sensors_event_t event;
   lis.getEvent(&event);
 
-  float threshold = .5;
-
   if(lastX > 0 || lastY > 0 || lastZ > 0)
   {
-    if(abs(lastX - event.acceleration.x) > threshold || abs(lastY - event.acceleration.y) > threshold)
+    if(abs(lastX - event.acceleration.x) > diffThreshold || abs(lastY - event.acceleration.y) > diffThreshold)
     {
       //Don't trigger on the way up
       if(on)
@@ -98,21 +112,17 @@ void loop4events() {
       {        
         on = true;
         Serial.println("Event occured");
-        char outString[200];
-        
-        sprintf(outString,
-        "\t\tX: %f to %f (%f) Y: %f to %f (%f) Z: %f to %f (%f)",
-          lastX, event.acceleration.x, abs(lastX - event.acceleration.x),
-          lastY, event.acceleration.y, abs(lastY - event.acceleration.y),
-          lastZ, event.acceleration.z, abs(lastZ - event.acceleration.z));
-        Serial.println(outString);
-    
+        Serial.print("\t\tX: "); Serial.print(event.acceleration.x); Serial.print(" chg:"); Serial.print(abs(lastX - event.acceleration.x));
+        Serial.print(" \tY: "); Serial.print(event.acceleration.y); Serial.print(" chg:"); Serial.print(abs(lastY - event.acceleration.y));
+        Serial.print(" \tZ: "); Serial.print(event.acceleration.z);
+        Serial.println(" m/s^2 ");
+        Serial.println();
+
         Serial.println("Setting high");
         gpio_set_level(relayGPIO, 1);
         delay(1000);
         gpio_set_level(relayGPIO, 0);
         Serial.println("Setting low");
-        //delay(1000);
       }
     }
     else
@@ -125,5 +135,5 @@ void loop4events() {
   lastY = event.acceleration.y;
   lastZ = event.acceleration.z;
 
-  delay(100);
+  delay(500);
 }
